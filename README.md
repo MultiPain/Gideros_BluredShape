@@ -2,7 +2,7 @@
 A class for Gideros that allows you to create nice blured shapes with shadows
 
 # Preview
-![alt text](https://github.com/MultiPain/Gideros_BluredShape/blob/master/XZXAWpxkiNI.jpg)
+![alt text](https://github.com/MultiPain/Gideros_BluredShape/blob/master/Preview.jpg)
 
 # Example
 
