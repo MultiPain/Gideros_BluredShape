@@ -119,14 +119,14 @@ function GShape:initShadowShader(shadowLevel, shadowAlpha, shadowOX, shadowOY)
 	self.off = math.max(2, tw * 0.015, th * 0.015)
 	
 	local ww,hh = tw * self.falloff, th * self.falloff -- shadow image needs to be larger than the element casting the shadow, in order to capture the blurry shadow falloff
-    self.ww, self.hh = ww,hh
+	self.ww, self.hh = ww,hh
 	
 	local d = math.max(ww, hh)
-    local blurRad = smoothstep(d, math.max(SCREEN.W, SCREEN.H)*1.5, 60) * 1.5	
-    local aspectX = d/ww * blurRad
+	local blurRad = smoothstep(d, math.max(SCREEN.W, SCREEN.H)*1.5, 60) * 1.5	
+	local aspectX = d/ww * blurRad
 	local aspectY = d/hh * blurRad
 
-    local downSample = .3
+	local downSample = .3
 
 	local dx = ww * downSample
 	local dy = hh * downSample
@@ -172,8 +172,6 @@ function GShape:initShadowShader(shadowLevel, shadowAlpha, shadowOX, shadowOY)
 end
 --
 function GShape:initBlurShader(blurLevel)
-	-- the idea absolutly same as shadowing (see "initShadowShader"), except
-	-- wee need to draw the background that is overlaped by this shape somehow (see "renderBG")
 	local tw,th = self.shape:getSize()
 	self.blurShader:setConstant("fRad",Shader.CINT,1,blurLevel)
 	self.blurShader:setConstant("fTexelSize",Shader.CFLOAT2,1,{1/tw,1/th})
