@@ -67,7 +67,7 @@ GShape = Core.class(Sprite)
 --			feather [optional, default 0.2]
 --	
 local defaultRadius = 12
-local blurLevel = 2
+local blurLevel = 1
 local shadowLevel = 0.5
 local shadowAlpha = 0.5
 local shadowOX = 2
@@ -109,7 +109,7 @@ function GShape:setStyle(style)
 	self.shape:setFillColor(style.color or 0, style.alpha or 1)
 	self.shape:setLineColor(outline.color or 0, outline.alpha or 1)
 	self.shape:setLineThickness(outline.width or 1, outline.feather or 0.2)
-	self.shape:setAnchorPoint(self.ax, self.ay)
+	self.shape:setAnchorPosition(self.ax*self.w, self.ay*self.h)
 end
 --
 function GShape:initShadowShader(shadowLevel, shadowAlpha, shadowOX, shadowOY)
@@ -144,6 +144,7 @@ function GShape:initShadowShader(shadowLevel, shadowAlpha, shadowOX, shadowOY)
 	-- make it black
 	self.shape:setFillColor(0,shadowAlpha)
 	self.shape:setLineColor(0,shadowAlpha)
+	self.shape:setLineThickness(0, 0)
 	textureA:draw(self.shape, 
 		dx * self.ax,
 		dy * self.ay
@@ -172,7 +173,7 @@ function GShape:initShadowShader(shadowLevel, shadowAlpha, shadowOX, shadowOY)
 end
 --
 function GShape:initBlurShader(blurLevel)
-	local tw,th = self.shape:getSize()
+	local tw,th = self.w,self.h
 	self.blurShader:setConstant("fRad",Shader.CINT,1,blurLevel)
 	self.blurShader:setConstant("fTexelSize",Shader.CFLOAT2,1,{1/tw,1/th})
 	self.blurShader:setConstant("fColorTransform",Shader.CFLOAT4,1,{1,1,1,1})
@@ -181,8 +182,7 @@ function GShape:initBlurShader(blurLevel)
 	self.textureA = RenderTarget.new(tw,th,false)
 	self.bufferA = Bitmap.new(self.textureA)
 	self.bufferA:setShader(self.blurShader)
-	
-	
+		
 	-- create texture for horizontal blur
 	self.textureB = RenderTarget.new(tw,th,true)
 	-- apply this texture to shape
@@ -200,8 +200,7 @@ end
 --
 function GShape:renderBG()
 	local x,y = self:getPosition()
-	local tw,th = self.shape:getSize()
-	
+
 	-- get object parent to find other childs that is above this object
 	local par = self:getParent()
 	if (not par) then return end
@@ -219,17 +218,22 @@ function GShape:renderBG()
 	-- so we dont get the recurseve rendering). Note, that this object will not be rendered ,
 	-- because of previous loop, and shadow (if it exists) also will not be render, so thats how
 	-- we got the shadow effect that is behind shape, but we dont see it on shape (only behind)
-	self.textureA:draw(stage, -x + tw * self.ax, -y + th * self.ay)
+	self.textureA:draw(stage, -x + self.w * self.ax, -y + self.h * self.ay)
 	
+	--[[
 	for i = ind, l do 
 		local c = par:getChildAt(i)
 		c:setVisible(true)
 	end
+	]]
 end
 --
 function GShape:updateBlur()	
 	if (self.haveBlur) then
-		local tw,th = self.shape:getSize()
+		local tw,th = self.w,self.h
+		--tw=2^(math.ceil(math.log(tw)/math.log(2)))
+		--th=2^(math.ceil(math.log(th)/math.log(2)))		
+		--print(tw,th)
 		-- render shape 
 		self:renderBG()	
 		-- apply vertical blur
@@ -243,6 +247,8 @@ end
 --
 function GShape:circle(params, style)
 	self.r = params.r
+	self.w = self.r * 2
+	self.h = self.r * 2
 	local r = self.r
 	self.shape = Path2D.new()
 	local ms="MAAZ"
@@ -250,8 +256,9 @@ function GShape:circle(params, style)
 	local mp = {0,r, r,r,0,0,1,2*r,r, r,r,0,0,1,0,r} -- anchor in top left corner
 	self.shape:setPath(ms,mp)
 	
+	self.w=r*2
+	self.h=r*2
 	self:setStyle(style)
-	self.shape:setAnchorPoint(self.ax, self.ay)
 end
 --
 function GShape:rect(params, style)
@@ -264,7 +271,7 @@ function GShape:rect(params, style)
 	self.shape:setPath(ms,mp)
 	
 	self:setStyle(style)
-	self.shape:setAnchorPoint(self.ax, self.ay)
+	--self.shape:setAnchorPoint(self.ax, self.ay)
 end
 --
 function GShape:rrect(params, style)
@@ -297,7 +304,6 @@ function GShape:rrect(params, style)
 	self.shape:setPath(ms,mp)
 	
 	self:setStyle(style)
-	self.shape:setAnchorPoint(self.ax, self.ay)
 end
 --------------------------------------------------------
 ------------- OVERIDE SOME PARENT METHODS --------------
