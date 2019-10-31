@@ -106,9 +106,9 @@ end
 --
 function GShape:setStyle(style)
 	local outline = style.outline
-	self.shape:setFillColor(style.color, style.alpha)
-	self.shape:setLineColor(outline.color, outline.alpha)
-	self.shape:setLineThickness(outline.width, outline.feather)
+	self.shape:setFillColor(style.color or 0, style.alpha or 1)
+	self.shape:setLineColor(outline.color or 0, outline.alpha or 1)
+	self.shape:setLineThickness(outline.width or 1, outline.feather or 0.2)
 	self.shape:setAnchorPoint(self.ax, self.ay)
 end
 --
