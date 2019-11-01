@@ -7,6 +7,31 @@ A class for Gideros that allows you to create nice blured shapes with shadows
 # Example
 
 ```lua
+app @ application
+local dx = app:getLogicalTranslateX() / app:getLogicalScaleX()
+local dy = app:getLogicalTranslateY() / app:getLogicalScaleY()
+local w = app:getContentWidth()
+local h = app:getContentHeight()
+
+SCREEN = {
+	Left = -dx, Top = -dy,
+	Right = w + dx, Bottom = h + dy,
+	W = dx*2 + w,
+	H = dy*2 + h,
+	Center = {x = w / 2, y = h / 2}
+}
+
+-------------------------------------------------------------
+-- You need to have a background to use GShape Blur effect --
+-------------------------------------------------------------
+local bgTex = RenderTarget.new(SCREEN.W, SCREEN.H)
+bgTex:clear(app:getBackgroundColor(), 1)
+local bg = Bitmap.new(bgTex)
+bg:setPosition(SCREEN.Left, SCREEN.Top)
+stage:addChild(bg)
+-------------------------------------------------------------
+-------------------------------------------------------------
+
 local style = {
 	color = 0xf9f8f8, alpha = 0.2, 
 	outline = {color = 0x454545, alpha = 0.5, width = 4, feather = .3}
