@@ -15,6 +15,10 @@ sh1 = GShape.new({name = "rrect", shape = {w = 720, h = 250, r1 = 64, r2 = 64},b
 sh2 = GShape.new({name = "circle",shape = {r = 100},blur = true, }, style)
 sh3 = GShape.new({name = "rect",shape = {w = 120, h = 320},}, style)
 
+sh1:updateBlur()
+sh2:updateBlur()
+sh3:updateBlur()
+
 stage:addChild(sh1)
 stage:addChild(sh2)
 stage:addChild(sh3)
