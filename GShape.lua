@@ -78,6 +78,8 @@ function GShape:init(params, style)
 	self.ax = params.ax or 0.5
 	self.ay = params.ay or 0.5
 	self.style = style
+	self.drawX = 0
+	self.drawY = 0
 	
 	self[self.name](self, params.shape, style)
 	self:addChild(self.shape)
@@ -199,8 +201,6 @@ function GShape:setBlurColor(r,g,b,a)
 end
 --
 function GShape:renderBG()
-	local x,y = self:getPosition()
-
 	-- get object parent to find other childs that is above this object
 	local par = self:getParent()
 	if (not par) then return end
@@ -218,7 +218,7 @@ function GShape:renderBG()
 	-- so we dont get the recurseve rendering). Note, that this object will not be rendered ,
 	-- because of previous loop, and shadow (if it exists) also will not be render, so thats how
 	-- we got the shadow effect that is behind shape, but we dont see it on shape (only behind)
-	self.textureA:draw(stage, -x + self.w * self.ax, -y + self.h * self.ay)
+	self.textureA:draw(stage, -self.drawX + self.w * self.ax, -self.drawY + self.h * self.ay)
 	
 	--[[
 	for i = ind, l do 
@@ -232,8 +232,7 @@ function GShape:updateBlur()
 	if (self.haveBlur) then
 		local tw,th = self.w,self.h
 		--tw=2^(math.ceil(math.log(tw)/math.log(2)))
-		--th=2^(math.ceil(math.log(th)/math.log(2)))		
-		--print(tw,th)
+		--th=2^(math.ceil(math.log(th)/math.log(2)))
 		-- render shape 
 		self:renderBG()	
 		-- apply vertical blur
@@ -244,7 +243,23 @@ function GShape:updateBlur()
 		self.blurShader:setConstant("fTexelSize",Shader.CFLOAT2,1,{1/tw,0,})
 	end
 end
+-- If GShape is a child of another object, call this to 
+-- correctly blur background (if it is used)
+function GShape:updateRelativeXY(x, y)
+	self.drawX = x
+	self.drawY = y
+end
 --
+function GShape:updateRelativeX(x)
+	self.drawX = x
+end
+--
+function GShape:updateRelativeY(y)
+	self.drawY = y
+end
+--------------------------------------------------------
+--------------------- SHAPE FORMS ----------------------
+--------------------------------------------------------
 function GShape:circle(params, style)
 	self.r = params.r
 	self.w = self.r * 2
@@ -328,4 +343,20 @@ function GShape:setAnchorPoint(x, y)
 			self.shadow.__dy * self.ay - self.shadow.__shadowOY 
 		)
 	end
+end
+--
+function GShape:setPosition(x, y)
+	Sprite.setPosition(self, x, y)
+	self.drawX = x
+	self.drawY = y
+end
+--
+function GShape:setX(x)
+	Sprite.setX(self, x)
+	self.drawX = x
+end
+--
+function GShape:setY(y)
+	Sprite.setY(self, y)
+	self.drawY = y
 end
