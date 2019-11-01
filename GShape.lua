@@ -112,8 +112,8 @@ function GShape:initShadowShader(shadowLevel, shadowAlpha, shadowOX, shadowOY)
 	self.shape:setLineColor(0,1)
 	--self.shape:setLineThickness(0,0)
 	textureA:draw(self.shape,
-		(dx - self.w*downSample)/2,
-		(dy - self.h*downSample)/2
+		(dx - dw)/2,
+		(dy - dh)/2
 	)
 	self:setStyle(self.style)
 	self.shape:setScale(1)
