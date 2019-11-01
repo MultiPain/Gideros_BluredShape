@@ -1,40 +1,20 @@
+local _PACKAGE = (...):match("(.-)([^\\/]-%.?([^%.\\/]*))$")
+
 local desc = {
-	blur = {
-		{
-			{name="vMatrix",type=Shader.CMATRIX,sys=Shader.SYS_WVP,vertex=true},
-			{name="fColor",type=Shader.CFLOAT4,sys=Shader.SYS_COLOR,vertex=false},
-			{name="fTexture",type=Shader.CTEXTURE,vertex=false},
-			{name="fTexelSize",type=Shader.CFLOAT2,vertex=false},
-			{name="fColorTransform",type=Shader.CFLOAT4,vertex=false},
-			{name="fRad",type=Shader.CINT,vertex=false},
-		},
-		{
-			{name="vVertex",type=Shader.DFLOAT,mult=3,slot=0,offset=0},
-			{name="vColor",type=Shader.DUBYTE,mult=4,slot=1,offset=0},
-			{name="vTexCoord",type=Shader.DFLOAT,mult=2,slot=2,offset=0},
-		}
+	{
+		{name="vMatrix",type=Shader.CMATRIX,sys=Shader.SYS_WVP,vertex=true},
+		{name="fColor",type=Shader.CFLOAT4,sys=Shader.SYS_COLOR,vertex=false},
+		{name="fTexture",type=Shader.CTEXTURE,vertex=false},
+		{name="fTexelSize",type=Shader.CFLOAT2,vertex=false},
+		{name="fColorTransform",type=Shader.CFLOAT4,vertex=false},
+		{name="fRad",type=Shader.CINT,vertex=false},
 	},
-	shadow = {
-		{
-			{name="vMatrix",type=Shader.CMATRIX,sys=Shader.SYS_WVP,vertex=true},
-			{name="fColor",type=Shader.CFLOAT4,sys=Shader.SYS_COLOR,vertex=false},
-			{name="fTexture",type=Shader.CTEXTURE,vertex=false},
-			{name="am",type=Shader.CFLOAT2,vertex=false},
-			{name="fColorTransform",type=Shader.CFLOAT4,vertex=false},
-		},
-		{
-			{name="vVertex",type=Shader.DFLOAT,mult=3,slot=0,offset=0},
-			{name="vColor",type=Shader.DUBYTE,mult=4,slot=1,offset=0},
-			{name="vTexCoord",type=Shader.DFLOAT,mult=2,slot=2,offset=0},
-		}
+	{
+		{name="vVertex",type=Shader.DFLOAT,mult=3,slot=0,offset=0},
+		{name="vColor",type=Shader.DUBYTE,mult=4,slot=1,offset=0},
+		{name="vTexCoord",type=Shader.DFLOAT,mult=2,slot=2,offset=0},
 	}
 }
-local function smoothstep(t,a,b)
-    local a,b = a or 0,b or 1
-    local t = math.min(1,math.max(0,(t-a)/(b-a)))
-    return t * t * (3 - 2 * t)
-end
-
 
 GShape = Core.class(Sprite)
 
@@ -67,11 +47,14 @@ GShape = Core.class(Sprite)
 --			feather [optional, default 0.2]
 --	
 local defaultRadius = 12
-local blurLevel = 1
-local shadowLevel = 0.5
-local shadowAlpha = 0.5
-local shadowOX = 2
-local shadowOY = 2
+local blurLevel = 2
+
+local shadowLevel = 2--0.5
+local shadowAlpha = 1--0.7
+local shadowOX = 0
+local shadowOY = 0
+local falloff = 1.4 
+local downSample = 0.45
 
 function GShape:init(params, style)
 	self.name = params.name or "rrect"
@@ -82,13 +65,14 @@ function GShape:init(params, style)
 	self.drawY = 0
 	
 	self[self.name](self, params.shape, style)
+	self.shapeW = self.shape:getWidth()
+	self.shapeH = self.shape:getHeight()
 	self:addChild(self.shape)
 	
 	if (params.shadow) then 
 		self.haveShadow = true
-		self.shadowShader = Shader.new("shadowShader/vShader", "shadowShader/fShader", 0, 
-			desc.shadow[1], desc.shadow[2]
-		)
+		
+		self.shadowShader = Shader.new(_PACKAGE.."shaders/vertexBlur", _PACKAGE.."shaders/fragmentBlur", 0, desc[1], desc[2])
 		self:initShadowShader(
 			params.shadowLevel or shadowLevel,
 			params.shadowAlpha or shadowAlpha,
@@ -99,111 +83,145 @@ function GShape:init(params, style)
 	
 	if (params.blur) then 
 		self.haveBlur = true
-		self.blurShader = Shader.new("blurShader/vShader","blurShader/fShader", 0, 
-			desc.blur[1], desc.blur[2]
-		)
+		self.blurShader = Shader.new(_PACKAGE.."shaders/vertexBlur",_PACKAGE.."shaders/fragmentBlur", 0, desc[1], desc[2])
+		
 		self:initBlurShader(params.blurLevel or blurLevel)
 	end
+	self:setAnchorPoint(self.ax, self.ay)
 end
 --
-function GShape:setStyle(style)
-	local outline = style.outline
-	self.shape:setFillColor(style.color or 0, style.alpha or 1)
-	self.shape:setLineColor(outline.color or 0, outline.alpha or 1)
-	self.shape:setLineThickness(outline.width or 1, outline.feather or 0.2)
-	self.shape:setAnchorPosition(self.ax*self.w, self.ay*self.h)
-end
---
-function GShape:initShadowShader(shadowLevel, shadowAlpha, shadowOX, shadowOY)
+function GShape:initShadowShader(shadowLevel, shadowAlpha, shadowOX, shadowOY)		
+	local dw = self.w * downSample
+	local dh = self.h * downSample
 	
-	local tw,th = self.shape:getSize()
-	self.falloff = 1.3
-	self.off = math.max(2, tw * 0.015, th * 0.015)
+	local dx = dw * falloff -- size of RT, that used for blur, it must be bigger than down sampled shape
+	local dy = dh * falloff
 	
-	local ww,hh = tw * self.falloff, th * self.falloff -- shadow image needs to be larger than the element casting the shadow, in order to capture the blurry shadow falloff
-	self.ww, self.hh = ww,hh
+	self.shadowShader:setConstant("fRad",Shader.CINT,1,shadowLevel)
+	self.shadowShader:setConstant("fTexelSize",Shader.CFLOAT2,1,{1/dx,1/dy})
+	self.shadowShader:setConstant("fColorTransform",Shader.CFLOAT4,1,{0,0,0,shadowAlpha})
 	
-	local d = math.max(ww, hh)
-	local blurRad = smoothstep(d, math.max(SCREEN.W, SCREEN.H)*1.5, 60) * 1.5	
-	local aspectX = d/ww * blurRad
-	local aspectY = d/hh * blurRad
-
-	local downSample = .3
-
-	local dx = ww * downSample
-	local dy = hh * downSample
-	
-	self.shadowShader:setConstant("am", Shader.CFLOAT2, 1, {0, 0})	
-	self.shadowShader:setConstant("fColorTransform",Shader.CFLOAT4,1,{1,1,1,1})
-	
-	local textureA = RenderTarget.new(dx,dy,true)
-	local textureB = RenderTarget.new(dx,dy,true)
+	local textureA = RenderTarget.new(dx,dy, true)
 	local bufferA = Bitmap.new(textureA)
-	self.shadow = Bitmap.new(textureB)
+	local textureB = RenderTarget.new(dx,dy, true)
+	self.shadow = Bitmap.new(textureB)	
 	
-	-- scale shape
 	self.shape:setScale(downSample)
-	-- make it black
-	self.shape:setFillColor(0,shadowAlpha)
-	self.shape:setLineColor(0,shadowAlpha)
-	self.shape:setLineThickness(0, 0)
-	textureA:draw(self.shape, 
-		dx * self.ax,
-		dy * self.ay
+	self.shape:setFillColor(0,1)
+	self.shape:setLineColor(0,1)
+	--self.shape:setLineThickness(0,0)
+	textureA:draw(self.shape,
+		(dx - self.w*downSample)/2,
+		(dy - self.h*downSample)/2
 	)
-	-- reset scale
-	self.shape:setScale(1)
-	-- reset colors
 	self:setStyle(self.style)
+	self.shape:setScale(1)
 	
 	bufferA:setShader(self.shadowShader)
-	self.shadowShader:setConstant("am", Shader.CFLOAT2, 1, {0, aspectY})
+	self.shadowShader:setConstant("fTexelSize",Shader.CFLOAT2,1,{1/dx,0})
 	self.shadow:setShader(self.shadowShader)
 	textureB:draw(bufferA)
-	self.shadowShader:setConstant("am", Shader.CFLOAT2, 1, {aspectX, 0})
+	self.shadowShader:setConstant("fTexelSize",Shader.CFLOAT2,1,{0,1/dy})
 	self.shadow:setScale(1/downSample)
 	self.shadow:setAnchorPosition(
-		dx * self.ax - shadowOX, 
-		dy * self.ay - shadowOY
+		(dx - dw)/2 - shadowOX + dw * self.ax,
+		(dy - dh)/2 - shadowOY + dh * self.ay
 	)
 	self.shadow.__dx = dx
 	self.shadow.__dy = dy
+	self.shadow.__dw = dw
+	self.shadow.__dh = dh
 	self.shadow.__shadowOX = shadowOX
 	self.shadow.__shadowOY = shadowOY
 	
-	self:addChildAt(self.shadow,1)
+	self:addChildAt(self.shadow, 1)
 end
 --
 function GShape:initBlurShader(blurLevel)
-	local tw,th = self.w,self.h
+	-- the idea absolutly same as shadowing (see "initShadowShader"), except
+	-- wee need to draw the background that is overlaped by this shape somehow (see "renderBG")
+	
+	self.blurColor = {1,1,1,1}
 	self.blurShader:setConstant("fRad",Shader.CINT,1,blurLevel)
-	self.blurShader:setConstant("fTexelSize",Shader.CFLOAT2,1,{1/tw,1/th})
-	self.blurShader:setConstant("fColorTransform",Shader.CFLOAT4,1,{1,1,1,1})
+	self.blurShader:setConstant("fTexelSize",Shader.CFLOAT2,1,{1/self.w,1/self.h})
+	self.blurShader:setConstant("fColorTransform",Shader.CFLOAT4,1,self.blurColor)
 	
 	-- setup buffer for vertical blur
-	self.textureA = RenderTarget.new(tw,th,false)
+	self.textureA = RenderTarget.new(self.w,self.h,false)
 	self.bufferA = Bitmap.new(self.textureA)
 	self.bufferA:setShader(self.blurShader)
-		
+	
 	-- create texture for horizontal blur
-	self.textureB = RenderTarget.new(tw,th,true)
 	-- apply this texture to shape
-	self.shape:setTexture(self.textureB)
+	self.textureB = RenderTarget.new(self.w,self.h,true)
+	
+	if (TMP_FIX) then 
+		self:removeChild(self.shape)
+		self.shape = Bitmap.new(self.textureB)
+		self.shape:setAnchorPoint(self.ax, self.ay)
+		self:addChild(self.shape)
+		
+		--[[
+		local px = Pixel.new(0, 1, tw+4,th+4)
+		px:setAnchorPoint(self.ax, self.ay)
+		self:addChild(px)
+		]]
+	else
+		self.shape:setTexture(self.textureB)
+	end
 	self.shape:setShader(self.blurShader)
 end
---
+--------------------------------------------------------
+---------------------- BLUR COLOR ----------------------
+--------------------------------------------------------
 function GShape:setBlurColor(r,g,b,a)
-	r = r or 1
-	g = g or 1
-	b = b or 1
-	a = a or 1
-	self.blurShader:setConstant("fColorTransform",Shader.CFLOAT4,1,{r,g,b,a})
+	if (self.haveBlur) then
+		self.blurColor[1]=r
+		self.blurColor[2]=g
+		self.blurColor[3]=b
+		self.blurColor[4]=a
+		self.blurShader:setConstant("fColorTransform",Shader.CFLOAT4,1,self.blurColor)
+	end
+end
+function GShape:setBlurR(r)
+	if (self.haveBlur) then
+		self.blurColor[1]=r
+		self.blurShader:setConstant("fColorTransform",Shader.CFLOAT4,1,self.blurColor)
+	end
+end
+function GShape:setBlurG(g)
+	if (self.haveBlur) then
+		self.blurColor[2]=g
+		self.blurShader:setConstant("fColorTransform",Shader.CFLOAT4,1,self.blurColor)
+	end
+end
+function GShape:setBlurB(b)
+	if (self.haveBlur) then
+		self.blurColor[3]=b
+		self.blurShader:setConstant("fColorTransform",Shader.CFLOAT4,1,self.blurColor)
+	end
+end
+function GShape:setBlurA(a)
+	if (self.haveBlur) then
+		self.blurColor[4]=a
+		self.blurShader:setConstant("fColorTransform",Shader.CFLOAT4,1,self.blurColor)
+	end
+end
+--------------------------------------------------------
+--------------------------------------------------------
+--------------------------------------------------------
+function GShape:setStyle(style)
+	local outline = style.outline
+	self.shape:setFillColor(style.color, style.alpha)
+	self.shape:setLineColor(outline.color, outline.alpha)
+	self.shape:setLineThickness(outline.width, outline.feather)
+	--self.shape:setAnchorPoint(self.ax, self.ay)
 end
 --
 function GShape:renderBG()
 	-- get object parent to find other childs that is above this object
 	local par = self:getParent()
-	if (not par) then return end
+	if (not par) then print("Error rendering background, GShape dont have parent.") return end
 	local ind = par:getChildIndex(self)
 	local l = par:getNumChildren()
 	
@@ -220,27 +238,22 @@ function GShape:renderBG()
 	-- we got the shadow effect that is behind shape, but we dont see it on shape (only behind)
 	self.textureA:draw(stage, -self.drawX + self.w * self.ax, -self.drawY + self.h * self.ay)
 	
-	--[[
 	for i = ind, l do 
 		local c = par:getChildAt(i)
 		c:setVisible(true)
 	end
-	]]
 end
 --
 function GShape:updateBlur()	
 	if (self.haveBlur) then
-		local tw,th = self.w,self.h
-		--tw=2^(math.ceil(math.log(tw)/math.log(2)))
-		--th=2^(math.ceil(math.log(th)/math.log(2)))
 		-- render shape 
 		self:renderBG()	
 		-- apply vertical blur
-		self.blurShader:setConstant("fTexelSize",Shader.CFLOAT2,1,{0,1/th})
+		self.blurShader:setConstant("fTexelSize",Shader.CFLOAT2,1,{0,1/self.h})
 		-- render verticaly blured shape
 		self.textureB:draw(self.bufferA)
 		-- apply horizontal blur
-		self.blurShader:setConstant("fTexelSize",Shader.CFLOAT2,1,{1/tw,0,})
+		self.blurShader:setConstant("fTexelSize",Shader.CFLOAT2,1,{1/self.w,0,})
 	end
 end
 -- If GShape is a child of another object, call this to 
@@ -262,17 +275,16 @@ end
 --------------------------------------------------------
 function GShape:circle(params, style)
 	self.r = params.r
-	self.w = self.r * 2
-	self.h = self.r * 2
 	local r = self.r
+	self.w = r * 2
+	self.h = self.w
+	
 	self.shape = Path2D.new()
 	local ms="MAAZ"
 	--local mp={-r,0, r,r,0,0,0,r,0, r,r,0,0,0,-r,0} -- anchor in center 
 	local mp = {0,r, r,r,0,0,1,2*r,r, r,r,0,0,1,0,r} -- anchor in top left corner
 	self.shape:setPath(ms,mp)
 	
-	self.w=r*2
-	self.h=r*2
 	self:setStyle(style)
 end
 --
@@ -286,7 +298,6 @@ function GShape:rect(params, style)
 	self.shape:setPath(ms,mp)
 	
 	self:setStyle(style)
-	--self.shape:setAnchorPoint(self.ax, self.ay)
 end
 --
 function GShape:rrect(params, style)
@@ -323,27 +334,6 @@ end
 --------------------------------------------------------
 ------------- OVERIDE SOME PARENT METHODS --------------
 --------------------------------------------------------
-function GShape:hitTestPoint(x, y)
-	local tx,ty,w,h=self.shape:getBounds(stage)
-	if (self.name ~= "circle") then		
-		return not (x < tx or y < ty or x > tx + w or y > ty +h)
-	end
-	tx += self.r
-	ty += self.r
-	return (tx-x)^2+(ty-y)^2 <= self.r ^ 2
-end
---
-function GShape:setAnchorPoint(x, y)
-	self.ax = x
-	self.ay = y
-	self.shape:setAnchorPoint(self.ax, self.ay)
-	if (self.haveShadow) then 
-		self.shadow:setAnchorPosition(
-			self.shadow.__dx * self.ax - self.shadow.__shadowOX, 
-			self.shadow.__dy * self.ay - self.shadow.__shadowOY 
-		)
-	end
-end
 --
 function GShape:setPosition(x, y)
 	Sprite.setPosition(self, x, y)
@@ -362,4 +352,28 @@ function GShape:setY(y)
 	Sprite.setY(self, y)
 	self.drawY = y
 	self:updateBlur()
+end
+--
+function GShape:hitTestPoint(x, y)
+	local tx,ty,w,h=self.shape:getBounds(stage)
+	if (self.name ~= "circle") then		
+		return not (x < tx or y < ty or x > tx + w or y > ty +h)
+	end
+	tx += self.r
+	ty += self.r
+	return (tx-x)^2+(ty-y)^2 <= self.r ^ 2
+end
+--
+function GShape:setAnchorPoint(x, y)
+	self.ax = x
+	self.ay = y
+	self.shape:setAnchorPosition(self.w * self.ax, self.h * self.ay)
+
+	if (self.haveShadow) then 
+		local s = self.shadow
+		s:setAnchorPosition(
+			(s.__dx - s.__dw)/2 - s.__shadowOX + s.__dw * self.ax,
+			(s.__dy - s.__dh)/2 - s.__shadowOY + s.__dh * self.ay
+		)
+	end
 end
