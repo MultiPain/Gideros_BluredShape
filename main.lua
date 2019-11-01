@@ -12,13 +12,15 @@ SCREEN = {
 }
 local default = {
 	color = 0xf9f8f8, alpha = 0.2, 
-	outline = {color = 0x454545, alpha = 0.5, width = 4, feather = .3}
+	outline = {color = 0x454545, alpha = 1, width = 2, feather = .3}
 }
 local tex = Texture.new("bg2.jpg", true)
 local bg = Bitmap.new(tex)
 bg:setPosition(SCREEN.Left, SCREEN.Top)
 bg:setScale(SCREEN.W / tex:getWidth(), SCREEN.H / tex:getHeight())
 stage:addChild(bg)
+
+require "GShape"
 
 sh1 = GShape.new({shape = {w = 720, h = 250, r1 = 64, r2 = 64},blur = true, shadow = true,}, default)
 sh2 = GShape.new({name = "rect",shape = {w = 100, h = 100},blur = true, shadow = true,}, default)

@@ -49,10 +49,11 @@ GShape = Core.class(Sprite)
 local defaultRadius = 12
 local blurLevel = 2
 
-local shadowLevel = 2--0.5
-local shadowAlpha = 1--0.7
+local shadowLevel = 2
+local shadowAlpha = 1
 local shadowOX = 0
 local shadowOY = 0
+
 local falloff = 1.4 
 local downSample = 0.45
 
