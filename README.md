@@ -29,6 +29,9 @@ bgTex:clear(app:getBackgroundColor(), 1)
 local bg = Bitmap.new(bgTex)
 bg:setPosition(SCREEN.Left, SCREEN.Top)
 stage:addChild(bg)
+-- Since we coving whole screen with solid color, we can 
+-- disable background color draw call for better performance
+stage:setClearColorBuffer(false)
 -------------------------------------------------------------
 -------------------------------------------------------------
 
