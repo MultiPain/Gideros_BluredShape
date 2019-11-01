@@ -156,20 +156,7 @@ function GShape:initBlurShader(blurLevel)
 	-- apply this texture to shape
 	self.textureB = RenderTarget.new(self.w,self.h,true)
 	
-	if (TMP_FIX) then 
-		self:removeChild(self.shape)
-		self.shape = Bitmap.new(self.textureB)
-		self.shape:setAnchorPoint(self.ax, self.ay)
-		self:addChild(self.shape)
-		
-		--[[
-		local px = Pixel.new(0, 1, tw+4,th+4)
-		px:setAnchorPoint(self.ax, self.ay)
-		self:addChild(px)
-		]]
-	else
-		self.shape:setTexture(self.textureB)
-	end
+	self.shape:setTexture(self.textureB)
 	self.shape:setShader(self.blurShader)
 end
 --------------------------------------------------------
