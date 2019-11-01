@@ -349,14 +349,17 @@ function GShape:setPosition(x, y)
 	Sprite.setPosition(self, x, y)
 	self.drawX = x
 	self.drawY = y
+	self:updateBlur()
 end
 --
 function GShape:setX(x)
 	Sprite.setX(self, x)
 	self.drawX = x
+	self:updateBlur()
 end
 --
 function GShape:setY(y)
 	Sprite.setY(self, y)
 	self.drawY = y
+	self:updateBlur()
 end
