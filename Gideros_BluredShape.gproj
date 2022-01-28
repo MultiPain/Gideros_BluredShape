@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project>
+ <properties splash_h_image="" winrt_org="GiderosMobile" html5_fbinstant="0" html5_pwa="0" macos_bundle="com.yourdomain.yourapp-macos" tv_icon="" scaleMode="0" windowWidth="0" architecture="0" build_number="1" html5_symbols="0" disableSplash="0" windowHeight="0" mainluaOnly="0" win_domain="giderosmobile.com" encryptAssets="0" mouseTouchOrder="0" version="1.0" macos_category="5" encryptCode="0" version_code="1" autorotation="0" logicalWidth="320" mouseToTouch="1" win_org="GiderosMobile" splash_v_image="" ios_bundle="com.yourdomain.yourapp-ios" touchToMouse="1" html5_crash="" osx_domain="giderosmobile.com" orientation="0" app_name="" osx_bundle="com.yourdomain." osx_org="GiderosMobile" backgroundColor="#ffffff" splashScaleMode="0" osx_signingId="" fps="60" html5_pack="0" logicalHeight="480" html5_host="" osx_installerId="" retinaDisplay="0" html5_wasm="0" iosDevice="0" winrt_package="com.yourdomain.yourapp" osx_category="5" html5_mem="256" vsync="0" html5_fbload="100" app_icon="" exportMode="0" atv_bundle="com.yourdomain.yourapp-atv">
+  <imageScales/>
+  <plugins/>
+  <exports/>
+ </properties>
+ <folder name="GShape">
+  <folder name="shaders">
+   <file name="assets/GShape/shaders/fragmentBlur.glsl"/>
+   <file name="assets/GShape/shaders/vertexBlur.glsl"/>
+  </folder>
+  <file name="assets/GShape/ShapeRender.lua"/>
+  <file name="assets/GShape/init.lua"/>
+ </folder>
+ <file name="assets/Preview.jpg"/>
+ <file name="assets/bg2.jpg"/>
+ <file name="assets/init.lua"/>
+ <file name="assets/main.lua"/>
+</project>
